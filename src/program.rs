@@ -10,6 +10,7 @@ use websocket::client::Sender as SenderObj;
 use websocket::client::Receiver as ReceiverObj;
 use websocket::client::request::{Request, Url};
 use websocket::stream::WebSocketStream;
+use openssl::ssl::{SslMethod, SslContext};
 
 use ws;
 use options::Options;
@@ -36,15 +37,38 @@ pub fn run_wsta(options: &mut Options) {
 
     // Connect to the server
     log!(2, "About to connect to {}", url);
-    let mut request = match Client::connect(url) {
-        Ok(res) => res,
-        Err(err) => {
-            log!(1, "Error: {:?}", err);
-            stderr!("An error occured while connecting to '{}': {}",
-                           options.url, err);
-            exit(1);
+    let mut request;
+    if !options.cipher_list.is_empty() || options.rsa_only {
+        let mut ctx = SslContext::new(SslMethod::Sslv23).unwrap();
+        if !options.cipher_list.is_empty() {
+            log!(2, "Using ssl cipher_list {}", options.cipher_list);
+            ctx.set_cipher_list(&options.cipher_list).unwrap();
         }
-    };
+        else if options.rsa_only {
+            log!(2, "Using RSA only cipher suites for ssl key exchange");
+            ctx.set_cipher_list("AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES128-SHA:AES256-SHA:DES-CBC3-SHA").unwrap();
+        }
+        request = match Client::connect_ssl_context(url, &ctx) {
+            Ok(res) => res,
+            Err(err) => {
+                log!(1, "Error: {:?}", err);
+                stderr!("An error occured while connecting to '{}': {}",
+                               options.url, err);
+                exit(1);
+            }
+        };
+    }
+    else {
+        request = match Client::connect(url) {
+            Ok(res) => res,
+            Err(err) => {
+                log!(1, "Error: {:?}", err);
+                stderr!("An error occured while connecting to '{}': {}",
+                               options.url, err);
+                exit(1);
+            }
+        };
+    }
 
     // Set Origin header to be equal to the websocket url
     request.headers.set_raw("Origin", vec![origin.into_bytes()]);

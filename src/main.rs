@@ -24,6 +24,7 @@ extern crate hyper;
 extern crate cookie;
 extern crate config;
 extern crate xdg;
+extern crate openssl;
 
 // Needs to be imported first because of log! macro
 #[macro_use]
@@ -120,6 +121,15 @@ fn main() {
         ap.refer(&mut options.echo)
             .add_option(&["-e", "--echo"], StoreTrue,
                         "echo outgoing frames");
+
+        ap.refer(&mut options.cipher_list)
+            .metavar("CIPHERS")
+            .add_option(&["--cipher_list"], Store,
+                        "openssl cipher suites to use for connection");
+
+        ap.refer(&mut options.rsa_only)
+            .add_option(&["--rsaonly"], StoreTrue,
+                        "usa RSA only cipher suites for ssl key exchange");
 
         // This is a dummy entry used in --help - the actual profile is read
         // before ArgumentParser is invoked

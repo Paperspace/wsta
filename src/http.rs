@@ -1,12 +1,14 @@
 use std::io;
 use std::io::Write;
 use std::process::exit;
+use std::sync::Arc;
 
 use cookie::Cookie as CookiePair;
 
 use hyper::Client;
 use hyper::Url;
 use hyper::net::{HttpsConnector, Openssl};
+use openssl::ssl::{SslMethod, SslContext};
 use hyper::header::{Headers, SetCookie, Cookie};
 use hyper::status::StatusCode;
 use hyper::client::RedirectPolicy;
@@ -37,7 +39,23 @@ pub fn fetch_session_cookie(options: &Options) -> Option<Cookie> {
     if url.scheme() == "https" {
         log!(3, "Scheme is https");
 
-        let https_connector = HttpsConnector::new(Openssl::default());
+        let https_connector;
+        if !options.cipher_list.is_empty() || options.rsa_only {
+            let mut ctx = SslContext::new(SslMethod::Sslv23).unwrap();
+            if !options.cipher_list.is_empty() {
+                log!(2, "Using ssl cipher_list {}", options.cipher_list);
+                ctx.set_cipher_list(&options.cipher_list).unwrap();
+            }
+            else if options.rsa_only {
+                log!(2, "Using RSA only cipher suites for ssl key exchange");
+                ctx.set_cipher_list("AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES128-SHA:AES256-SHA:DES-CBC3-SHA").unwrap();
+            }
+            let ssl = Openssl{ context: Arc::new(ctx) };
+            https_connector = HttpsConnector::new(ssl);
+        }
+        else {
+            https_connector = HttpsConnector::new(Openssl::default());
+        }
         log!(3, "Created https_connector: {:?}", https_connector);
 
         client = Client::with_connector(https_connector);

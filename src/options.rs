@@ -53,7 +53,13 @@ pub struct Options {
 
     /// Specifies the amount of bytes per frame to send when
     /// sending binary data.
-    pub binary_frame_size: String
+    pub binary_frame_size: String,
+
+    /// List of OpenSSL cipher suites to be used for ssl connections
+    pub cipher_list: String,
+
+    /// Use RSA only cipher suites for ssl key exchange
+    pub rsa_only: bool
 }
 
 impl Options {
@@ -71,7 +77,9 @@ impl Options {
             ping_interval: None,
             ping_msg: String::from("ping"),
             binary_mode: false,
-            binary_frame_size: String::from("256")
+            binary_frame_size: String::from("256"),
+            cipher_list: String::new(),
+            rsa_only: false
         }
     }
 
@@ -92,6 +100,8 @@ impl Options {
             binary_mode: get_bool(config, "binary_mode"),
             // TODO Make int
             binary_frame_size: get_str_or(config, "binary_frame_size", "256"),
+            cipher_list: get_str(config, "cipher_list"),
+            rsa_only: get_bool(config, "rsa_only"),
         }
     }
 }
